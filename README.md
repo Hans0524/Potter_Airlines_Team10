@@ -4,7 +4,7 @@ This project uses [uv](https://docs.astral.sh/uv/) to manage Python and its libr
 `pyproject.toml`, `uv.lock` and `.python-version` pin the exact environment, so one
 command rebuilds it on any machine.
 
-### Create the environment
+### 1. Create the environment
 
 From the project folder:
 
@@ -15,8 +15,26 @@ uv sync
 This creates a `.venv` folder and installs everything listed in `uv.lock`. If Python
 3.12 is not installed, uv downloads it automatically.
 
+### 2. Run
 
-### Libraries
+**Option A — terminal (no setup needed)**
+
+```bash
+uv run python main.py            # command-line system
+uv run python dashboard_app.py   # dashboard, opens at http://localhost:8501
+uv run python test.py            # tests
+```
+
+**Option B — VS Code Run button**
+
+1. `Ctrl + Shift + P` → **Python: Select Interpreter**
+2. Choose `.venv\Scripts\python.exe` in this project folder (on macOS/Linux: `.venv/bin/python`)
+3. Open any file above and click ▶ Run
+
+The interpreter only needs to be selected once per folder.
+
+
+### 3.Libraries
 
 | Library | Needed by | Purpose |
 |---|---|---|
