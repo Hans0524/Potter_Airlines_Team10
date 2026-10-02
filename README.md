@@ -111,7 +111,7 @@ Choose option **4** to run the demonstration. It requires at least one valid fli
 
 The demo leaves `flights_2.db` unchanged. Normal bookings through option **3** persist inventory changes.
 
-## Current limitations ????
+## Current limitations
 
 - The active interface uses numbered menu choices. The older command examples such as `python main.py demo` in the source docstring are not implemented as argument-based commands.
 - The menu supports route filtering; fare-class filtering and custom display limits are available through `list_flights()` when called from Python.
@@ -383,3 +383,18 @@ From the project directory, run:
 
 ```bash
 python3 test.py
+```
+# Team
+
+| Component | Files | Owner |
+|---|---|---|
+| Main program and workflow | `main.py`, `flight_operation.py` | |
+| Flight class | `flight.py` | |
+| Pricing engine | `pricing.py`, `pricing_batch.py` | `Zidi Gao` |
+| Database and data generation | `sql.py`, `generate_flights.py`, `flights_2.db` | |
+| Testing | `test.py` | |
+| Dashboard | `dashboard_app.py`, `.streamlit/` | `Zidi Gao`|
+| AI fare explanation | `llm.py` | |
+
+## Use of AI Tools
+We used Claude and ChatGPT to help debug our code, review parts of the project, understand course concepts, and draft documentation. We reviewed their suggestions and tested all submitted code. Our team can explain how the code works.
