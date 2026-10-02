@@ -388,7 +388,7 @@ python3 test.py
 
 | Component | Files | Owner |
 |---|---|---|
-| Main program and workflow | `main.py`, `flight_operation.py` | |
+| Main program and workflow | `main.py`, `flight_operation.py` | `David Wang` |
 | Flight class | `flight.py` | |
 | Pricing engine | `pricing.py`, `pricing_batch.py` | `Zidi Gao` |
 | Database and data generation | `sql.py`, `generate_flights.py`, `flights_2.db` | |
