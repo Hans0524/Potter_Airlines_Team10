@@ -392,7 +392,7 @@ python3 test.py
 | Flight class | `flight.py` | `Xinyue Li` |
 | Pricing engine | `pricing.py`, `pricing_batch.py` | `Zidi Gao` |
 | Database and data generation | `sql.py`, `generate_flights.py`, `flights_2.db` | `Andrew Batmunkh` |
-| Testing | `test.py` | |
+| Testing | `test.py` | `Wanghanyue (Sophia) Fang`|
 | Dashboard | `dashboard_app.py`, `.streamlit/` | `Zidi Gao`|
 | AI fare explanation | `llm.py` | `Andrew Batmunkh` |
 
