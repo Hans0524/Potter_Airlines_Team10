@@ -76,7 +76,7 @@ python main.py
 
 The menu catches validation, input-conversion, assertion, and SQLite errors during operations, prints an error message, and allows another choice. The `if __name__ == "__main__"` block starts the menu when the file is run directly.
 
-When option 6 is selected, `main()` retrieves the flight and calculates its fare using `pricing_batch.price_flights()`. It passes the flight and pricing results to `llm.explain_fare()`, which requests an explanation from Groq using the configured `openai/gpt-oss-20b` model.
+When option 5 is selected, `main()` retrieves the flight and calculates its fare using `pricing_batch.price_flights()`. It passes the flight and pricing results to `llm.explain_fare()`, which requests an explanation from Groq using the configured `openai/gpt-oss-20b` model.
 
 The request includes the route, fare class, base fare, final price, and pricing factors. The model is asked to return JSON containing `flight_id`, `price_cad`, and a short explanation of the main pricing factors. Python calculates the fare; the LLM explains it.
 
