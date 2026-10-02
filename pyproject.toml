@@ -1,5 +1,5 @@
 [project]
-name = "potter-airlines-backup"
+name = "potter-airlines"
 version = "0.1.0"
 description = "Potter Airlines dynamic flight pricing system (RSM8431Y group project)"
 readme = "README.md"

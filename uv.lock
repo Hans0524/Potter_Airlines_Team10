@@ -600,7 +600,7 @@ wheels = [
 ]
 
 [[package]]
-name = "potter-airlines-backup"
+name = "potter-airlines"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
