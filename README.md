@@ -391,10 +391,10 @@ python3 test.py
 | Main program and workflow | `main.py`, `flight_operation.py` | `David Wang` |
 | Flight class | `flight.py` | |
 | Pricing engine | `pricing.py`, `pricing_batch.py` | `Zidi Gao` |
-| Database and data generation | `sql.py`, `generate_flights.py`, `flights_2.db` | |
+| Database and data generation | `sql.py`, `generate_flights.py`, `flights_2.db` | `Andrew Batmunkh` |
 | Testing | `test.py` | |
 | Dashboard | `dashboard_app.py`, `.streamlit/` | `Zidi Gao`|
-| AI fare explanation | `llm.py` | |
+| AI fare explanation | `llm.py` | `Andrew Batmunkh` |
 
 ## Use of AI Tools
 We used Claude and ChatGPT to help debug our code, review parts of the project, understand course concepts, and draft documentation. We reviewed their suggestions and tested all submitted code. Our team can explain how the code works.
