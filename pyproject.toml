@@ -1,0 +1,13 @@
+[project]
+name = "potter-airlines-backup"
+version = "0.1.0"
+description = "Potter Airlines dynamic flight pricing system (RSM8431Y group project)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=2.5.3",
+    "pandas>=3.0.6",
+    "plotly>=7.1.0",
+    "requests>=2.34.2",
+    "streamlit>=1.64.0",
+]

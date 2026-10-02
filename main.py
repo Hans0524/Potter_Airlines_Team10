@@ -1,0 +1,373 @@
+from pathlib import Path
+import sqlite3
+
+import pandas as pd
+
+from flight_operation import (
+    get_flight,
+    list_flights,
+    show_flight,
+    book_flight,
+    run_demo,
+)
+import pricing_batch
+import llm
+
+PROJECT_DIR = Path(__file__).resolve().parent
+DATABASE = PROJECT_DIR / "flights_2.db"
+
+
+##   def load_flight_class():
+##        ## UPDATE: If Flight is exported to flight.py, replace this loader and the
+##        ## assignment below with: from flight import Flight
+##        notebook_path = PROJECT_DIR / "Flight.ipynb"
+##        notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+##        definitions = []
+##        for cell in notebook["cells"]:
+##            if cell["cell_type"] == "code":
+##                tree = ast.parse("".join(cell["source"]))
+##                definitions.extend(
+##                    node for node in tree.body
+##                    if isinstance(node, (ast.Import, ast.ImportFrom))
+##                    or (isinstance(node, ast.ClassDef) and node.name == "Flight")
+##                )
+##        namespace = {"__name__": "flight_notebook"}
+##        module = ast.Module(body=definitions, type_ignores=[])
+##       exec(compile(module, str(notebook_path), "exec"), namespace)
+##        return namespace["Flight"]
+
+
+
+# not necessary
+# def check_raw_numbers(record):
+#     ## UPDATE: Once Flight preserves raw constructor inputs and validates whole
+#     ## numbers and finite values itself, remove this helper and its call below.
+#     ## Checking before construction avoids int(12.9) hiding invalid input.
+#     for name in ("day_of_week", "days_to_departure", "departure_hour", # Check whole-number fields and reject booleans
+#                  "capacity", "class_capacity", "seats_remaining"):
+#         value = record[name]
+#         if isinstance(value, bool) or not isinstance(value, Integral):
+#             raise ValueError(f"{name} must be a whole number.")
+#     for name in ("base_fare", "historical_avg_route_demand", # check numeric inputs are finite
+#                  "route_popularity", "current_load_factor"):
+#         value = record[name]
+#         if isinstance(value, bool) or not isinstance(value, Real) or not math.isfinite(value):
+#             raise ValueError(f"{name} must be a finite number.")
+
+# # some changes
+# def make_flight(record, today=None):
+#     """Refresh date-sensitive data and validate a database record."""
+#     record = dict(record)
+#     check_raw_numbers(record) # call check_raw_numbers
+#     departure = date.fromisoformat(record["departure_date"])
+#     ## UPDATE: If Flight starts refreshing days_to_departure itself, move this
+#     ## calculation there and remove the duplicate assignment here.
+#     ## Pricing uses calendar days; departure_hour is not a timezone-aware cutoff.
+#     record["days_to_departure"] = (departure - (today or date.today())).days
+#     # days_to_departure was recalculated, self.days_to_departure = int(days_to_departure) ->
+#     # self.days_to_departure = (date.fromisoformat(self.departure_date) - date.today()).days
+#     flight = Flight(**record)
+#     ## UPDATE: If zero popularity becomes valid, change Flight.validate() to
+#     ## match both pricing modules. No pricing workaround is needed in main.py.
+#     flight.validate()
+#     return flight
+
+
+# def get_flight(conn, flight_id):
+#     rows = conn.execute(
+#         "SELECT * FROM flights WHERE flight_id = ?", (flight_id,)
+#     ).fetchall()
+#     if not rows:
+#         raise ValueError(f"Flight {flight_id!r} was not found.")
+#     if len(rows) != 1:
+#         raise ValueError(f"Duplicate flight ID: {flight_id!r}.") # detect duplicate IDs when retriving one flight
+#     return make_flight(rows[0])
+
+
+# def list_flights(conn, route=None, fare_class=None, limit=10):
+#     """Validate upcoming flights, price in bulk, and rank available fares."""
+#     if limit <= 0:
+#         raise ValueError("The result limit must be positive.")
+#     rows = conn.execute(
+#         """SELECT * FROM flights
+#            WHERE (? IS NULL OR route = ?)
+#              AND (? IS NULL OR fare_class = ?)""",
+#         (route, route, fare_class, fare_class),
+#     ).fetchall()
+#     today = date.today()
+#     flights = []
+
+#     seen_ids = set()
+#     for row in rows:
+#         if row["flight_id"] in seen_ids:
+#             raise ValueError(f"Duplicate flight ID: {row['flight_id']!r}.")
+#         seen_ids.add(row["flight_id"]) # detect duplicate flight IDs when listing flights
+
+#         if date.fromisoformat(row["departure_date"]) < today:
+#             continue # Exclude past flights from listings
+
+#         flight = make_flight(row, today)
+#         if flight.seats_remaining > 0:
+#             flights.append(flight) # include only flights with available seats.
+
+#     if not flights:
+#         print("No available upcoming flights match your search.")
+#         return pd.DataFrame()
+
+#     # Each object was validated before entering the vectorized pricing function.
+#     table = pd.DataFrame([flight.to_dict() for flight in flights])
+#     priced = pricing_batch.price_flights(table).sort_values(
+#         ["final_price", "departure_date", "flight_id"]
+#     ) # main integration point from pricing_batch: vectorized pricing of all available flights, sorted by final price, then departure date, then flight ID
+
+#     columns = ["flight_id", "route", "fare_class", "departure_date",
+#                "days_to_departure", "seats_remaining", "final_price"]
+#     print(priced[columns].head(limit).to_string(index=False))
+#     print(f"\n{len(priced)} available flights; cheapest fares shown first.")
+#     return priced
+
+
+# def show_flight(conn, flight_id):
+#     flight = get_flight(conn, flight_id)
+#     print(flight.summary()) # display available flight and its fare & pricing factors
+#     if flight.seats_remaining == 0:
+#         print("Sold out — unavailable for booking.") # display sold out flights
+#         return
+#     flight.validate()
+#     factors = pricing_batch.price_flights(pd.DataFrame([flight.to_dict()]))
+#     print(f"Current fare per seat: ${factors.iloc[0]['final_price']:.2f}")
+#     for name in ("time_factor", "capacity_factor", "weekend_factor",
+#                  "seasonal_factor", "demand_factor"):
+#         print(f"  {name}: {factors.iloc[0][name]:.3f}")
+#     if flight.is_nearly_full(): # integrate from flight
+#         print("Limited seats remaining (at least 85% occupied).")
+
+
+# def book_flight(conn, flight_id, seats):
+#     """Update inventory atomically, then quote the fare for the next customer."""
+#     # Reserve the write transaction before reading to prevent a lost update.
+#     with conn:
+#         conn.execute("BEGIN IMMEDIATE")
+#         flight = get_flight(conn, flight_id)
+#         flight.validate() # from flight
+#         ## UPDATE: The two pricing modules can differ by one cent at rounding
+#         ## boundaries. Use batch pricing for both listings and booking quotes.
+#         ## Once their rounding agrees, pricing.price_single() is also suitable.
+
+#         before = pricing_batch.price_flights(
+#             pd.DataFrame([flight.to_dict()])
+#         ).iloc[0]["final_price"] # calculate the fare before booking, using pricing_batch.
+
+#         flight.validate()  # Validate immediately before modification.
+#         flight.book_seats(seats) # from flight, again,  modifying.
+#         flight.validate() # Validate immediately after modification.
+
+#         after = pricing_batch.price_flights(
+#             pd.DataFrame([flight.to_dict()])
+#         ).iloc[0]["final_price"] # repeats pricing calculation using the updated load factor.
+
+#         values = flight.to_dict() # save to SQLite
+
+#         cursor = conn.execute(
+#             """UPDATE flights
+#                SET seats_remaining = ?, current_load_factor = ?, days_to_departure = ?
+#                WHERE flight_id = ?""",
+#             (values["seats_remaining"], values["current_load_factor"],
+#              values["days_to_departure"], values["flight_id"]),
+#         ) # received corresponding value from the tuple, only one matching flight should be updated.
+
+#         if cursor.rowcount != 1:
+#             raise ValueError("Booking must update exactly one flight.")
+
+#     print(f"Booked {seats} seat(s) on {flight_id}.")
+#     print(f"Fare quoted before booking: ${before:.2f} per seat.")
+#     print(flight.summary())
+
+#     if flight.seats_remaining:
+#         print(f"Fare for the next booking: ${after:.2f} per seat.")
+#     else:
+#         print("This fare class is now sold out.")
+
+#     return flight # return the updated flight.
+
+
+# def run_demo(source):
+#     demo = sqlite3.connect(":memory:")
+#     demo.row_factory = sqlite3.Row # connection attribute to return dict-like rows objects, use dict(row) if need an actual dictionary.
+
+#     try:
+#         source.backup(demo)
+#         print("Demo uses an in-memory copy; the saved database is unchanged.\n")
+
+#         priced = list_flights(demo, limit=5)
+#         if len(priced) == 0:
+#             raise ValueError("The demo needs at least one available upcoming flight.")
+
+#         flight_id = str(priced.iloc[0]["flight_id"])
+#         show_flight(demo, flight_id) # select cheapest flight and show its pricing factors.
+
+#         flight = get_flight(demo, flight_id)
+#         seats_before = flight.seats_remaining
+
+#         # record = flight.to_dict()
+#         # record["flight_id"] = "DEMO-" + uuid4().hex[:12]
+#         # emporary = make_flight(record)
+#         # temporary.validate()
+
+#         book_flight(demo, flight_id, 1)
+#         updated = get_flight(demo, flight_id)
+#         assert updated.seats_remaining == seats_before - 1
+#         print("\nDemo booking succeeded; inventory updated correctly.")
+
+#         before = updated.to_dict()
+#         rejected = False
+
+#         try:
+#             book_flight(demo, updated.flight_id, updated.seats_remaining + 1)
+#         except ValueError as exc:
+#             rejected = True
+#             print(f"\nEdge case passed: overbooking rejected ({exc})")
+
+#         assert rejected, "Overbooking should have been rejected."
+
+#         unchanged = get_flight(demo, flight_id)
+#         assert unchanged.to_dict() == before
+#         print("Check passed: rejected booking did not change the flight.")
+
+#         # columns = list(record)
+#         # placeholders = ", ".join("?" for _ in columns)
+#         # with demo:
+#         #     demo.execute(
+#         #         f"INSERT INTO flights ({', '.join(columns)}) VALUES ({placeholders})",
+#         #         tuple(record.values()),
+#         #     )
+#         # print("\nInserted a temporary flight for the booking demonstration.")
+#         # show_flight(demo, temporary.flight_id)
+#         # updated = book_flight(demo, temporary.flight_id, 1)
+#         # before = updated.to_dict()
+#         # try:
+#         #     book_flight(demo, updated.flight_id, updated.seats_remaining + 1)
+#         # except ValueError as exc:
+#         #     if get_flight(demo, updated.flight_id).to_dict() != before:
+#         #         raise AssertionError("Rejected booking changed the saved inventory.")
+#         #     print(f"\nEdge case passed: overbooking rejected ({exc})")
+#         # else:
+#         #     raise AssertionError("Overbooking should have been rejected.")
+#         # updated.validate()
+#         # with demo:
+#         #     cursor = demo.execute(
+#         #         "DELETE FROM flights WHERE flight_id = ?", (updated.flight_id,)
+#         #     )
+#         #     if cursor.rowcount != 1:
+#         #         raise AssertionError("Demo cleanup should delete exactly one row.")
+#         # print("Deleted the temporary flight. INSERT, SELECT, UPDATE, DELETE demonstrated.")
+#     finally:
+#         demo.close()
+
+
+# # def main():
+# #     parser = argparse.ArgumentParser(description=__doc__,
+# #                                      formatter_class=argparse.RawDescriptionHelpFormatter)
+# #     parser.add_argument("--db", type=Path, default=DATABASE, help="SQLite database path")
+# #     commands = parser.add_subparsers(dest="command")
+# #     listing = commands.add_parser("list", help="Rank available flights by fare")
+# #     listing.add_argument("--route", help="For example, YYZ-YVR")
+# #     listing.add_argument("--fare-class", choices=sorted(Flight.available_classes))
+# #     listing.add_argument("--limit", type=int, default=10)
+# #     show = commands.add_parser("show", help="Show a flight and its pricing factors")
+# #     show.add_argument("flight_id")
+# #     booking = commands.add_parser("book", help="Book seats and save inventory changes")
+# #     booking.add_argument("flight_id")
+# #     booking.add_argument("seats", type=int)
+# #     commands.add_parser("demo", help="Run a demo without changing the saved database")
+# #     args = parser.parse_args()
+
+# #     ## UPDATE: Once sql.py preserves the schema and seeds only when needed, an
+# #     ## explicit initialization function could be called here for a missing DB.
+# #     ## Do not import the current sql.py: importing it replaces the flights table.
+# #     if not args.db.is_file():
+# #         parser.error(f"Database not found: {args.db}. Supply an existing flights database.")
+# #     mode = "rw" if args.command == "book" else "ro"
+# #     conn = sqlite3.connect(args.db.resolve().as_uri() + f"?mode={mode}", uri=True)
+# #     conn.row_factory = sqlite3.Row
+# #     try:
+# #         if args.command in (None, "list"):
+# #             list_flights(conn, getattr(args, "route", None),
+# #                          getattr(args, "fare_class", None), getattr(args, "limit", 10))
+# #         elif args.command == "show":
+# #             show_flight(conn, args.flight_id)
+# #         elif args.command == "book":
+# #             book_flight(conn, args.flight_id, args.seats)
+# #         elif args.command == "demo":
+# #             run_demo(conn)
+# #     finally:
+# #         conn.close()
+
+def main():
+    # Avoid creating an empty database if the file is missing.
+    if not DATABASE.is_file():
+        print("Database not found:", DATABASE)
+        return
+
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+
+    try:
+        while True:
+            print("\nPotter Airlines")
+            print("1. List available flights")
+            print("2. Show one flight")
+            print("3. Book seats")
+            print("4. Run demo")
+            print("5. Explain a fare (AI)")
+            print("6. Exit")
+
+            choice = input("Choose an option: ").strip()
+
+            try:
+                if choice == "1":
+                    route = input(
+                        "Enter a route, or press Enter for all routes: "
+                    ).strip().upper()
+
+                    if route == "":
+                        list_flights(conn)
+                    else:
+                        list_flights(conn, route=route)
+
+                elif choice == "2":
+                    flight_id = input("Flight ID: ").strip().upper()
+                    show_flight(conn, flight_id)
+
+                elif choice == "3":
+                    flight_id = input("Flight ID: ").strip().upper()
+                    seats = int(input("Number of seats: "))
+                    book_flight(conn, flight_id, seats)
+
+                elif choice == "4":
+                    run_demo(conn)
+
+                elif choice == "5":
+                    flight_id = input("Flight ID: ").strip().upper()
+                    flight = get_flight(conn, flight_id)
+                    priced_row = pricing_batch.price_flights(
+                        pd.DataFrame([flight.to_dict()])
+                    ).iloc[0]
+                    llm.explain_fare(flight, priced_row)
+
+                elif choice == "6":
+                    print("Goodbye!")
+                    break
+
+                else:
+                    print("Please enter a number from 1 to 6.")
+
+            except (ValueError, TypeError, KeyError,
+                    AssertionError, sqlite3.Error) as error:
+                print("Error:", error)
+
+    finally:
+        conn.close()
+
+if __name__ == "__main__":
+    main()

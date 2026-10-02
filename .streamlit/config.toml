@@ -1,0 +1,11 @@
+# Theme for dashboard_app.py (midnight navy + gold)
+[theme]
+base = "dark"
+primaryColor = "#c98500"
+backgroundColor = "#0f1a2b"
+secondaryBackgroundColor = "#16233a"
+textColor = "#ffffff"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
